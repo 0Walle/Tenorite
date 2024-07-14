@@ -1,0 +1,439 @@
+
+Object fn self isNone {
+	if self === None return True
+	False
+}
+
+Object fn self ?? other {
+	if self isNone return other
+	self
+}
+
+Object fn self bool {
+	if self isNone return False
+	if self === False return False
+	True
+}
+
+Object fn self $ f {
+	f value: self
+}
+
+Object fn self %% fmt {
+	formatPadding value: self string value: fmt
+}
+
+Object fn self memberOf: seq {
+	if Reflect notResponds: seq to: #contains: return (
+		System panic: "Type error: #contains: not found in call to #memberOf:")
+	seq contains: self
+}
+
+............ System ............
+
+System fn System print: obj {
+	System writeString: obj string
+	System writeString: "\n"
+}
+
+............ Eq ............
+
+Eq fn self == other { self === other }
+Eq fn self != other { (self == other) not }
+
+............ Ord ............
+
+Ord fn self > other { (self <= other) not }
+Ord fn self >= other { self > other or: self == other }
+Ord fn self <= other { self < other or: self == other }
+Ord fn self < other { (self >= other) not }
+
+............ Bool ............
+
+Bool fn self ifTrue: tblock {
+	if self return tblock call
+	False
+}
+
+Bool fn self ifFalse: fblock {
+	if self not return fblock call
+	True
+}
+
+Bool fn self ifTrue: tblock ifFalse: fblock {
+	if self return tblock call
+	fblock call
+}
+
+Bool fn self ifFrue: fblock ifTrue: tblock {
+	if self return tblock call
+	fblock call
+}
+
+Bool fn self and: other {
+	if self return other
+	False
+}
+
+Bool fn self or: other {
+	if self return True
+	other
+}
+
+Bool fn self asNumber {
+	if self return 1
+	0
+}
+
+............ Number ............
+
+Number fn from ;< to { from ; (to - 1) }
+
+............ String ............
+
+String fn self at: index {
+	if index type Number return self at_: index
+	if index type List return "" join: (self at: @index)
+	if index type Range return self slice: index min end: index max
+	System panic: "Index error"
+}
+
+String fn self <> other {
+	self concatString: other string
+}
+
+.. String fn self partition: substr {
+.. 	first := self indexOfString: substr
+.. 	if first == -1 return [self. None. None]
+.. 	.. first := self
+
+.. }
+
+String fn sep join: list {
+	if list len == 0 return ""
+	if list len == 1 return list[0] string
+	recur := { |str i|
+		if i >= list len return str
+		str := str concatString: sep :>
+							 concatString: list[i] string
+		i := i + 1
+		loop
+	}
+	recur value: list[0] string value: 1
+}
+
+String fn self if: bool {
+	if bool return self
+	""
+}
+
+String fn self contains: patt {
+	if patt type String return self containsString: patt
+	if patt type Regex return self =~ patt :> matched
+	System panic: "String#contains: Type Error " <> patt string
+}
+
+String fn self underExplode: f { "" join: self explode $ f }
+
+............ Range ............
+
+Range fn self all { True }
+Range fn self any { True }
+Range fn self count { True }
+Range fn self <$> f { self list <$> f }
+Range fn self <?> f { self list <?> f }
+Range fn self == other {
+	if self from != other from return False
+	self to == other to
+}
+Range fn self contains: n {
+	if n < self min return False
+	if n > self max return False
+	True
+}
+
+............ List ............
+
+List fn self string {
+	"[" <> (", " join: self <$> {|s| s %% "r" }) <> "]"
+}
+
+List fn self %% fmt {
+	self string
+}
+
+List fn self at: index {
+	if index type Number return self at_: index
+	if index type Bool return self at_: index asNumber
+	if index type List return self at: @index
+	if index type Range return self slice: index min end: index max
+	System panic: "Index error"
+}
+
+List fn self </> f {
+	if self len == 0 return self
+	if self len == 1 return self[0]
+	recur := { |acc i|
+		if i >= self len return acc
+		acc := f value: acc value: self[i]
+		i := i + 1
+		loop
+	}
+	recur value: self[0] value: 1
+}
+
+List fn self <//> f {
+	if self len == 0 return self
+	if self len == 1 return [self[0]]
+	recur := { |acc list i|
+		if i >= self len return list
+		acc := f value: acc value: self[i]
+		list := list ++ acc
+		i := i + 1
+		loop
+	}
+	first := self[0]
+	recur value: first value: [first] value: 1
+}
+
+List fn self === other {
+	if (other type List) not return False
+	if self len !== other len return False
+	(self @==@ other) all
+}
+
+List fn self <$> f {
+	f value: @self
+}
+
+List fn self <?> filter {
+	if filter type Function return self compress: self <$> filter
+	self compress: filter
+}
+
+List fn self find: f {
+	{ |i|
+		if i >= self len return None
+		if f value: self[i] return self[i]
+		i := i + 1
+		loop
+	} value: 0
+}
+
+List fn self firstTrue {
+	{ |i|
+		if i >= self len return None
+		if self[i] return i
+		i := i + 1
+		loop
+	} value: 0
+}
+
+List fn self count {
+	if self len == 0 return 0
+	recur := { |count i|
+		if i >= self len return count
+		count := count + self[i] bool asNumber
+		i := i + 1
+		loop
+	}
+	recur value: 0 value: 0
+}
+
+List fn self take: n {
+	if n type Number return self takeNumber: n
+	{ |acc i|
+		if i >= self len return acc
+		if (n value: self[i]) bool not return acc
+		acc := acc ++ self[i]
+		i := i + 1
+		loop
+	} value: [] value: 0
+}
+
+List fn self drop: n {
+	if n type Number return self dropNumber: n
+	self dropNumber: ({ |i|
+		if i >= self len return i
+		if (n value: self[i]) bool not return i
+		i := i + 1
+		loop
+	} value: 0)
+}
+
+List fn self groupBy: f {
+	if f type List return self groupList: f
+	self groupList: self <$> f
+}
+
+List fn self contains: obj {
+	(self find: { |other| other === obj }) isNone not
+}
+
+List fn self memberOf: seq {
+	if Reflect notResponds: seq to: #contains: return (
+		System panic: "Type error: #contains: not found in call to #memberOf:")
+	seq contains: @self
+}
+
+List fn self indices {
+	(0;<self len) list compress: self
+}
+
+.. Seq
+.. 	  all any count <?> </> <//> <$>
+.. +	take: drop: groupBy:
+.. List
+.. 	  [] len find: compress: ++ <>
+.. +	unique indexOf: >> << flat
+
+............ Table ............
+
+Table fn self string {
+	k := (self keys @%% "r")
+	v := (self values @%% "r")
+	"#[" <> (", " join: (k @<> " => " @<>@ v)) <> "]"
+}
+
+Table fn self at: index {
+	if index type List return self at_: @index
+	self at_: index
+}
+
+Table fn self find: f {
+	{ |i|
+		if i >= self len return None
+		if f value: self values[i] value: self keys[i] return self keys[i]
+		i := i + 1
+		loop
+	} value: 0
+}
+
+Table fn self <$> f {
+	(f value:@ self values value:@ self keys) ! self keys
+}
+
+Table fn self firstTrue {
+	self find: { |x| x }
+}
+
+.. ............ Symbol ............
+
+.. .. ? Symbol arity
+
+.. ............ Namespace ............
+
+.. .. ?
+
+.. ............ Function ............
+
+.. Function fn f self2 { { |alpha| f value: alpha value: alpha } }
+.. Function fn f swap2 { { |alpha omega| f value: omega value: alpha } }
+
+.. Function fn f whileFalse {
+.. 	if (Bool value: f call) return True
+.. 	loop
+.. }
+
+.. Function fn f whileTrue {
+.. 	if (Bool value: f call) not return False
+.. 	loop
+.. }
+
+Function fn f collect {
+	{ |acc|
+		result := f call
+		if result isNone return acc
+		acc := acc ++ result
+		loop
+	} value: []
+}
+
+Function fn f flatCollect {
+	{ |acc|
+		result := f call
+		if result isNone return acc
+		acc := acc <> result
+		loop
+	} value: []
+}
+
+............ RegexResults ............
+
+String fn self =~ regex {
+	self findRegex: regex
+}
+
+RegexResults fn self string {
+	if &matched not return "<Regex no match>"
+	"<Regex match=#{&groups[0] %% 'r'}>"
+}
+
+RegexResults fn self groups { &groups }
+RegexResults fn self spans { &spans }
+RegexResults fn self matched { &matched }
+RegexResults fn self subject { &subject }
+
+RegexResults fn self from {
+	if &matched return &spans[0] from
+	None
+}
+RegexResults fn self to {
+	if &matched return &spans[0] to
+	None
+}
+RegexResults fn self match {
+	if &matched return &groups[0]
+	""
+}
+RegexResults fn self span {
+	if &matched return &spans[0]
+	None
+}
+
+RegexResults fn self ifMatch: f {
+	if &matched return f value: self
+	None
+}
+
+RegexResults fn self ifMatch: f else: block {
+	if &matched return f value: self
+	block call
+}
+
+RegexResults fn self at: index { &groups[index] }
+RegexResults fn self group: index { &groups[index] }
+RegexResults fn self span: index { &spans[index] }
+
+............ Scanner ............
+
+type Scanner
+Scanner fn Scanner read: string {
+	Scanner new: {
+		&i := 0
+		&subject := string
+		&match := None
+	}
+}
+
+Scanner fn self match { &match match }
+Scanner fn self matchSize { &match match len }
+Scanner fn self at: index { &match at: index }
+Scanner fn self groups { &match groups }
+
+Scanner fn self isFinished { &i >= &subject len }
+
+Scanner fn self scan: re {
+	match := &subject findRegex: re start: &i
+	if match matched not return False
+	&i := match to
+	&match := match
+	True
+}
+
+Scanner fn self check: re {
+	match := &subject findRegex: re start: &i
+	if match matched not return False
+	&match := match
+	True
+}
